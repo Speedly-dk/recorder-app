@@ -37,7 +37,12 @@ class UpdateChecker: ObservableObject {
         }
 
         do {
-            let (data, _) = try await URLSession.shared.data(from: URL(string: API_URL)!)
+            guard let url = URL(string: API_URL) else {
+                print("Invalid API URL")
+                return
+            }
+
+            let (data, _) = try await URLSession.shared.data(from: url)
 
             let releases = try JSONDecoder().decode([FailableDecodable<GHRelease>].self, from: data)
                 .compactMap { $0.base }
@@ -64,6 +69,7 @@ class UpdateChecker: ObservableObject {
             await MainActor.run {
                 self.lastCheckError = error
                 print("Update check failed: \(error.localizedDescription)")
+                // Don't crash the app if update check fails
             }
         }
     }

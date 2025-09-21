@@ -36,14 +36,16 @@ class StatusBarController: NSObject, ObservableObject {
         // Set initial icon state
         updateStatusIcon()
 
-        // Connect to AudioRecorder and observe state changes
-        Task { @MainActor in
-            audioRecorder = AppState.shared.audioRecorder
-            setupRecorderObservation()
+        // Setup observation after initialization completes
+        DispatchQueue.main.async { [weak self] in
+            self?.setupRecorderObservation()
         }
     }
 
     private func setupRecorderObservation() {
+        // Access AudioRecorder safely from AppState
+        audioRecorder = AppState.shared.audioRecorder
+
         guard let audioRecorder = audioRecorder else { return }
 
         // Observe isRecording state
@@ -58,9 +60,10 @@ class StatusBarController: NSObject, ObservableObject {
         audioRecorder.$recordingDuration
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
-                if audioRecorder.isRecording {
-                    self?.updateStatusIcon()
-                }
+                guard let self = self,
+                      let recorder = self.audioRecorder,
+                      recorder.isRecording else { return }
+                self.updateStatusIcon()
             }
             .store(in: &cancellables)
     }
@@ -102,7 +105,11 @@ class StatusBarController: NSObject, ObservableObject {
         // Create content view controller only once and reuse it
         // ContentView now uses shared AppState for its StateObjects
         if contentViewController == nil {
-            contentViewController = NSHostingController(rootView: ContentView())
+            let contentView = ContentView()
+            contentViewController = NSHostingController(rootView: contentView)
+
+            // Ensure the content size is set
+            contentViewController?.preferredContentSize = NSSize(width: 350, height: 480)
         }
 
         popover.contentViewController = contentViewController
@@ -143,12 +150,15 @@ class StatusBarController: NSObject, ObservableObject {
     }
 
     func updateStatusIcon() {
-        guard let button = statusItem.button,
-              let audioRecorder = audioRecorder else { return }
+        guard let button = statusItem.button else { return }
 
-        if audioRecorder.isRecording {
+        // Safe access to audioRecorder
+        let isRecording = audioRecorder?.isRecording ?? false
+        let recordingDuration = audioRecorder?.recordingDuration ?? 0
+
+        if isRecording {
             // Show icon with duration text
-            let durationString = formatDuration(audioRecorder.recordingDuration)
+            let durationString = formatDuration(recordingDuration)
 
             // Create attributed string with icon and duration
             let attachment = NSTextAttachment()
