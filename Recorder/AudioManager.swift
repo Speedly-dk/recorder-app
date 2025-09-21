@@ -28,19 +28,27 @@ class AudioManager: ObservableObject {
     }
 
     private func setupNotifications() {
-        NotificationCenter.default.addObserver(
-            self,
-            selector: #selector(handleDeviceChange),
-            name: AVAudioSession.routeChangeNotification,
-            object: nil
+        var propertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        let listenerBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+            DispatchQueue.main.async {
+                self?.refreshDevices()
+            }
+            return noErr
+        }
+
+        AudioObjectAddPropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            nil,
+            listenerBlock
         )
     }
 
-    @objc private func handleDeviceChange() {
-        DispatchQueue.main.async {
-            self.refreshDevices()
-        }
-    }
 
     func refreshDevices() {
         inputDevices = getAudioDevices(isInput: true)
@@ -189,6 +197,17 @@ class AudioManager: ObservableObject {
     }
 
     deinit {
-        NotificationCenter.default.removeObserver(self)
+        var propertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        AudioObjectRemovePropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            nil,
+            nil
+        )
     }
 }
