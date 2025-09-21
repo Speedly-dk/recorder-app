@@ -1,24 +1,21 @@
-//
-//  ContentView.swift
-//  Recorder
-//
-//  Created by Kristian Primdal on 21/09/2025.
-//
-
 import SwiftUI
 
 struct ContentView: View {
     var body: some View {
         VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
-        }
-        .padding()
-    }
-}
+            Text("Recorder")
+                .font(.headline)
+                .padding(.top)
 
-#Preview {
-    ContentView()
+            Spacer()
+
+            Text("Empty Container")
+                .foregroundColor(.secondary)
+
+            Spacer()
+        }
+        .frame(width: 300, height: 400)
+        .padding()
+        .background(Color(NSColor.controlBackgroundColor))
+    }
 }

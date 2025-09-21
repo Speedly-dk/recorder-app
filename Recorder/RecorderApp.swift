@@ -1,17 +1,20 @@
-//
-//  RecorderApp.swift
-//  Recorder
-//
-//  Created by Kristian Primdal on 21/09/2025.
-//
-
 import SwiftUI
 
 @main
 struct RecorderApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+
     var body: some Scene {
-        WindowGroup {
-            ContentView()
+        Settings {
+            EmptyView()
         }
+    }
+}
+
+class AppDelegate: NSObject, NSApplicationDelegate {
+    var statusBarController: StatusBarController?
+
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        statusBarController = StatusBarController()
     }
 }
