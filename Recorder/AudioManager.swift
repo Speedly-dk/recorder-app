@@ -34,7 +34,7 @@ class AudioManager: ObservableObject {
             mElement: kAudioObjectPropertyElementMain
         )
 
-        AudioObjectAddPropertyListenerBlock(
+        _ = AudioObjectAddPropertyListenerBlock(
             AudioObjectID(kAudioObjectSystemObject),
             &propertyAddress,
             nil
@@ -42,7 +42,7 @@ class AudioManager: ObservableObject {
             DispatchQueue.main.async {
                 self?.refreshDevices()
             }
-            return 0
+            return noErr
         }
     }
 
