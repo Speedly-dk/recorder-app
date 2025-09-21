@@ -42,7 +42,7 @@ class AudioManager: ObservableObject {
             DispatchQueue.main.async {
                 self?.refreshDevices()
             }
-            return noErr
+            return 0
         }
     }
 
