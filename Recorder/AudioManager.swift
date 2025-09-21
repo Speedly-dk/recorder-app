@@ -34,19 +34,16 @@ class AudioManager: ObservableObject {
             mElement: kAudioObjectPropertyElementMain
         )
 
-        let listenerBlock: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+        AudioObjectAddPropertyListenerBlock(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            nil
+        ) { [weak self] _, _ in
             DispatchQueue.main.async {
                 self?.refreshDevices()
             }
             return noErr
         }
-
-        AudioObjectAddPropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress,
-            nil,
-            listenerBlock
-        )
     }
 
 
@@ -197,17 +194,6 @@ class AudioManager: ObservableObject {
     }
 
     deinit {
-        var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDevices,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-
-        AudioObjectRemovePropertyListenerBlock(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress,
-            nil,
-            nil
-        )
+        // Cleanup is handled automatically for blocks
     }
 }
