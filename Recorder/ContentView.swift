@@ -3,15 +3,13 @@ import AppKit
 import AVFoundation
 
 struct ContentView: View {
-    @StateObject private var appState = AppState.shared
+    @StateObject private var audioManager = AppState.shared.audioManager
+    @StateObject private var settings = AppState.shared.settings
+    @StateObject private var audioRecorder = AppState.shared.audioRecorder
+    @StateObject private var updateChecker = AppState.shared.updateChecker
     @State private var isMicrophoneAccessGranted = false
     @State private var isRefreshing = false
     @State private var showingError = false
-
-    private var audioManager: AudioManager { appState.audioManager }
-    private var settings: RecorderSettings { appState.settings }
-    private var audioRecorder: AudioRecorder { appState.audioRecorder }
-    private var updateChecker: UpdateChecker { appState.updateChecker }
 
     var body: some View {
         VStack(spacing: 20) {
@@ -235,8 +233,8 @@ struct ContentView: View {
                 Spacer()
                 Menu {
                     Toggle("Check for Updates", isOn: Binding(
-                        get: { appState.settings.checkForUpdates },
-                        set: { appState.settings.checkForUpdates = $0 }
+                        get: { settings.checkForUpdates },
+                        set: { settings.checkForUpdates = $0 }
                     ))
                     Divider()
                     Button("Quit") {
