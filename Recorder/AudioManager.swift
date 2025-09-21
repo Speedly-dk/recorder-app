@@ -184,13 +184,10 @@ class AudioManager: ObservableObject {
 
         guard status == noErr, streamConfigSize > 0 else { return false }
 
-        // Allocate buffer for stream configuration
-        let bufferCount = Int(streamConfigSize) / MemoryLayout<AudioBuffer>.size
-        let audioBufferList = UnsafeMutablePointer<AudioBufferList>.allocate(capacity: 1)
-        defer { audioBufferList.deallocate() }
-
-        // Initialize the buffer list
-        audioBufferList.pointee.mNumberBuffers = UInt32(bufferCount)
+        // Allocate buffer for the entire AudioBufferList structure
+        let audioBufferListPtr = malloc(Int(streamConfigSize))
+        guard let audioBufferListPtr = audioBufferListPtr else { return false }
+        defer { free(audioBufferListPtr) }
 
         // Get the actual stream configuration
         status = AudioObjectGetPropertyData(
@@ -199,29 +196,21 @@ class AudioManager: ObservableObject {
             0,
             nil,
             &streamConfigSize,
-            audioBufferList
+            audioBufferListPtr
         )
 
         guard status == noErr else { return false }
 
-        // Count total channels across all buffers
-        var totalChannels: UInt32 = 0
-        let bufferList = audioBufferList.pointee
+        // Cast to AudioBufferList and check for channels
+        let bufferList = audioBufferListPtr.assumingMemoryBound(to: AudioBufferList.self).pointee
 
-        // Access the mBuffers array properly
-        withUnsafePointer(to: bufferList.mBuffers) { buffersPtr in
-            let buffersBaseAddress = UnsafeRawPointer(buffersPtr).assumingMemoryBound(to: AudioBuffer.self)
-            let buffers = UnsafeBufferPointer(
-                start: buffersBaseAddress,
-                count: Int(bufferList.mNumberBuffers)
-            )
-
-            for buffer in buffers {
-                totalChannels += buffer.mNumberChannels
-            }
+        // Simply check if the first buffer has channels
+        // This is sufficient for most audio devices
+        if bufferList.mNumberBuffers > 0 {
+            return bufferList.mBuffers.mNumberChannels > 0
         }
 
-        return totalChannels > 0
+        return false
     }
 
     func requestMicrophonePermission(completion: @escaping (Bool) -> Void) {

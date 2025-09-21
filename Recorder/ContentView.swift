@@ -299,7 +299,11 @@ struct ContentView: View {
         audioManager.requestMicrophonePermission { granted in
             isMicrophoneAccessGranted = granted
             if granted {
-                audioManager.refreshDevices()
+                // Delay refresh to avoid race condition with CoreAudio
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    audioManager.refreshDevices()
+                    restoreSelectedDevices()
+                }
             }
         }
     }
