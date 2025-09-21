@@ -13,13 +13,13 @@ struct MenuBarView: View {
             }
             HStack(spacing: 2.5) {
                 if isRecording {
-                    Image(systemName: "record.circle")
+                    Image(systemName: "waveform.circle")
                         .foregroundStyle(.red)
                     Text(recordingDuration)
                         .offset(y: -0.5)
                         .monospacedDigit()
                 } else {
-                    Image(systemName: "record.circle.fill")
+                    Image(systemName: "waveform.circle")
                         .foregroundColor(.primary)
                 }
             }

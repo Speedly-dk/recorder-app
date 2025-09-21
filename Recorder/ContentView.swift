@@ -3,12 +3,14 @@ import AppKit
 import AVFoundation
 
 struct ContentView: View {
-    @StateObject private var audioManager = AudioManager()
-    @StateObject private var settings = RecorderSettings()
-    @StateObject private var audioRecorder = AudioRecorder()
+    @StateObject private var appState = AppState.shared
     @State private var isMicrophoneAccessGranted = false
     @State private var isRefreshing = false
     @State private var showingError = false
+
+    private var audioManager: AudioManager { appState.audioManager }
+    private var settings: RecorderSettings { appState.settings }
+    private var audioRecorder: AudioRecorder { appState.audioRecorder }
 
     var body: some View {
         VStack(spacing: 20) {
@@ -198,6 +200,25 @@ struct ContentView: View {
             }
 
             Spacer()
+
+            // Menu button with quit option
+            HStack {
+                Spacer()
+                Menu {
+                    Button("Quit") {
+                        NSApplication.shared.terminate(nil)
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 16))
+                        .foregroundColor(.secondary)
+                }
+                .menuStyle(.borderlessButton)
+                .menuIndicator(.hidden)
+                .frame(width: 24, height: 24)
+            }
+            .padding(.trailing, 12)
+            .padding(.bottom, 12)
         }
         .frame(width: 350, height: 480)
         .padding()

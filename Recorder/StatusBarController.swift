@@ -65,6 +65,7 @@ class StatusBarController: NSObject, ObservableObject {
         }
 
         // Create content view controller only once and reuse it
+        // ContentView now uses shared AppState for its StateObjects
         if contentViewController == nil {
             contentViewController = NSHostingController(rootView: ContentView())
         }
@@ -100,9 +101,8 @@ class StatusBarController: NSObject, ObservableObject {
             guard let self = self else { return }
             // Only clear if popover is truly closed
             if !self.popover.isShown {
-                self.popover.contentViewController = nil
-                // Optionally clear the retained content view controller
-                // Keep it retained for better performance on repeated opens
+                // Don't clear contentViewController - keep it for reuse
+                // This prevents recreating StateObjects
             }
         }
     }
@@ -182,9 +182,9 @@ class StatusBarController: NSObject, ObservableObject {
         }
 
         // Clear popover content before destroying popover
-        contentViewController = nil
-        popover?.contentViewController = nil
         popover?.close()
+        popover?.contentViewController = nil
+        contentViewController = nil
         popover = nil
 
         // Finally remove status item
