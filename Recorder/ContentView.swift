@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import AVFoundation
 
 struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
@@ -156,7 +157,19 @@ struct ContentView: View {
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
         .onAppear {
-            checkMicrophoneAccess()
+            // Don't request microphone permission immediately
+            // Only check current status
+            switch AVCaptureDevice.authorizationStatus(for: .audio) {
+            case .authorized:
+                isMicrophoneAccessGranted = true
+                audioManager.refreshDevices()
+            case .denied, .restricted:
+                isMicrophoneAccessGranted = false
+            case .notDetermined:
+                isMicrophoneAccessGranted = false
+            @unknown default:
+                isMicrophoneAccessGranted = false
+            }
             restoreSelectedDevices()
         }
     }

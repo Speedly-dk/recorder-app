@@ -166,10 +166,21 @@ class AudioManager: ObservableObject {
     }
 
     func requestMicrophonePermission(completion: @escaping (Bool) -> Void) {
-        AVCaptureDevice.requestAccess(for: .audio) { granted in
-            DispatchQueue.main.async {
-                completion(granted)
+        // Check current authorization status first
+        switch AVCaptureDevice.authorizationStatus(for: .audio) {
+        case .authorized:
+            completion(true)
+        case .notDetermined:
+            // Only request if not determined
+            AVCaptureDevice.requestAccess(for: .audio) { granted in
+                DispatchQueue.main.async {
+                    completion(granted)
+                }
             }
+        case .denied, .restricted:
+            completion(false)
+        @unknown default:
+            completion(false)
         }
     }
 
