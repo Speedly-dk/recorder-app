@@ -24,30 +24,6 @@ class AudioManager: ObservableObject {
 
     init() {
         refreshDevices()
-        setupNotifications()
-    }
-
-    private func setupNotifications() {
-        // For simplicity and reliability, we'll just refresh devices periodically
-        // CoreAudio property listeners require complex C-style callbacks
-        deviceCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-            self?.checkForDeviceChanges()
-        }
-    }
-
-    private var lastInputDeviceCount = 0
-    private var lastOutputDeviceCount = 0
-    private var deviceCheckTimer: Timer?
-
-    private func checkForDeviceChanges() {
-        let currentInputCount = getAudioDevices(isInput: true).count
-        let currentOutputCount = getAudioDevices(isInput: false).count
-
-        if currentInputCount != lastInputDeviceCount || currentOutputCount != lastOutputDeviceCount {
-            refreshDevices()
-            lastInputDeviceCount = currentInputCount
-            lastOutputDeviceCount = currentOutputCount
-        }
     }
 
 
@@ -197,7 +173,4 @@ class AudioManager: ObservableObject {
         }
     }
 
-    deinit {
-        deviceCheckTimer?.invalidate()
-    }
 }

@@ -5,6 +5,7 @@ struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
     @StateObject private var settings = RecorderSettings()
     @State private var isMicrophoneAccessGranted = false
+    @State private var isRefreshing = false
 
     var body: some View {
         VStack(spacing: 20) {
@@ -109,11 +110,42 @@ struct ContentView: View {
                 }
 
                 HStack {
-                    Button("Refresh Devices") {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            isRefreshing = true
+                        }
                         audioManager.refreshDevices()
+                        restoreSelectedDevices()
+
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                isRefreshing = false
+                            }
+                        }
+                    }) {
+                        HStack(spacing: 4) {
+                            if isRefreshing {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .progressViewStyle(CircularProgressViewStyle())
+                            } else {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.caption)
+                            }
+                            Text("Refresh Devices")
+                                .font(.caption)
+                        }
                     }
                     .buttonStyle(.bordered)
-                    .font(.caption)
+                    .disabled(isRefreshing)
+
+                    Spacer()
+
+                    if !audioManager.inputDevices.isEmpty || !audioManager.outputDevices.isEmpty {
+                        Text("\(audioManager.inputDevices.count) input, \(audioManager.outputDevices.count) output")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 .padding(.horizontal)
             }
