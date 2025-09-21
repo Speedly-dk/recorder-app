@@ -107,6 +107,7 @@ struct ContentView: View {
                         }
                         .buttonStyle(.bordered)
                         .controlSize(.small)
+                        .disabled(audioRecorder.isRecording)
                     }
                 }
                 .padding(.horizontal)
@@ -136,7 +137,7 @@ struct ContentView: View {
                         }
                     }
                     .pickerStyle(MenuPickerStyle())
-                    .disabled(!isMicrophoneAccessGranted || audioManager.inputDevices.isEmpty)
+                    .disabled(!isMicrophoneAccessGranted || audioManager.inputDevices.isEmpty || audioRecorder.isRecording)
                 }
                 .padding(.horizontal)
 
@@ -165,6 +166,7 @@ struct ContentView: View {
                         }
                     }
                     .pickerStyle(MenuPickerStyle())
+                    .disabled(audioRecorder.isRecording)
                 }
                 .padding(.horizontal)
 
@@ -181,6 +183,7 @@ struct ContentView: View {
                         }
                         .buttonStyle(.link)
                         .font(.caption)
+                        .disabled(audioRecorder.isRecording)
                     }
                     .padding(.horizontal)
                 }
@@ -213,7 +216,7 @@ struct ContentView: View {
                         }
                     }
                     .buttonStyle(.bordered)
-                    .disabled(isRefreshing)
+                    .disabled(isRefreshing || audioRecorder.isRecording)
 
                     Spacer()
 
@@ -225,6 +228,8 @@ struct ContentView: View {
                 }
                 .padding(.horizontal)
             }
+            .opacity(audioRecorder.isRecording ? 0.6 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: audioRecorder.isRecording)
 
             Spacer()
 
