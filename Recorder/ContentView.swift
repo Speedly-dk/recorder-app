@@ -33,7 +33,7 @@ struct ContentView: View {
                     .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
-                .disabled(!settings.folderExists() || (audioManager.selectedInputDevice == nil && audioManager.selectedOutputDevice == nil))
+                .disabled(audioManager.selectedInputDevice == nil && audioManager.selectedOutputDevice == nil)
 
                 if audioRecorder.isRecording {
                     HStack {
@@ -62,17 +62,22 @@ struct ContentView: View {
                         .fontWeight(.medium)
 
                     HStack {
-                        Text(settings.folderName())
+                        Image(systemName: "folder")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Text("Recordings")
                             .font(.caption)
                             .foregroundColor(.secondary)
                             .lineLimit(1)
-                            .truncationMode(.middle)
-                            .frame(maxWidth: .infinity, alignment: .leading)
 
-                        Button("Choose...") {
-                            selectFolder()
+                        Spacer()
+
+                        Button("Open in Finder") {
+                            openRecordingsFolder()
                         }
                         .buttonStyle(.bordered)
+                        .controlSize(.small)
                     }
                 }
                 .padding(.horizontal)
@@ -220,45 +225,16 @@ struct ContentView: View {
         }
     }
 
-    private func selectFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.canCreateDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.message = "Choose a folder for recordings. The app will have permission to save recordings here."
-        panel.prompt = "Select Folder"
+    private func openRecordingsFolder() {
+        let folderURL = AudioRecorder.getRecordingsFolderURL()
 
-        if panel.runModal() == .OK {
-            if let url = panel.url {
-                // Start accessing the security-scoped resource
-                let didStart = url.startAccessingSecurityScopedResource()
-                defer {
-                    if didStart {
-                        url.stopAccessingSecurityScopedResource()
-                    }
-                }
-
-                // Create a security-scoped bookmark for persistent access
-                if let bookmarkData = settings.saveBookmark(for: url) {
-                    print("Successfully saved bookmark for: \(url.path)")
-                } else {
-                    // Fall back to just saving the path
-                    settings.updateRecordingsFolder(url.path)
-                    print("Warning: Could not create bookmark, saved path only: \(url.path)")
-
-                    // Show warning to user
-                    DispatchQueue.main.async {
-                        let alert = NSAlert()
-                        alert.messageText = "Folder Access Warning"
-                        alert.informativeText = "The folder was selected, but persistent access couldn't be established. You may need to reselect the folder after restarting the app."
-                        alert.alertStyle = .warning
-                        alert.addButton(withTitle: "OK")
-                        alert.runModal()
-                    }
-                }
-            }
+        // Create the folder if it doesn't exist
+        if !FileManager.default.fileExists(atPath: folderURL.path) {
+            try? FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
         }
+
+        // Open the folder in Finder
+        NSWorkspace.shared.open(folderURL)
     }
 
     private func checkMicrophoneAccess() {

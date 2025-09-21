@@ -17,8 +17,6 @@ class AudioRecorder: NSObject, ObservableObject {
 
     private var durationTimer: Timer?
     private var recordingURL: URL?
-    private var securityScopedURL: URL?
-    private var needsStopAccessingSecurityScope = false
 
     // Track first sample time for proper timestamp alignment
     private var firstAudioSampleTime: CMTime?
@@ -37,6 +35,11 @@ class AudioRecorder: NSObject, ObservableObject {
         super.init()
     }
 
+    static func getRecordingsFolderURL() -> URL {
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        return documentsURL.appendingPathComponent("Recordings")
+    }
+
     func startRecording(audioManager: AudioManager, settings: RecorderSettings) async throws {
         guard !isRecording else { return }
 
@@ -48,23 +51,16 @@ class AudioRecorder: NSObject, ObservableObject {
         // Setup recording file
         let fileName = generateFileName()
 
-        // With sandbox disabled, we can directly use the selected folder path
-        let folderURL: URL
+        // Always use the app's container Documents/Recordings folder
+        let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let folderURL = documentsURL.appendingPathComponent("Recordings")
 
-        if !settings.recordingsFolderPath.isEmpty {
-            folderURL = URL(fileURLWithPath: settings.recordingsFolderPath)
-            print("Using selected folder: \(folderURL.path)")
-        } else {
-            // No folder selected, use default Documents/Recordings
-            let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            folderURL = documentsURL.appendingPathComponent("Recordings")
-
-            // Create the Recordings folder if it doesn't exist
-            if !FileManager.default.fileExists(atPath: folderURL.path) {
-                try? FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-            }
-            print("Using default folder: \(folderURL.path)")
+        // Create the Recordings folder if it doesn't exist
+        if !FileManager.default.fileExists(atPath: folderURL.path) {
+            try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+            print("Created recordings folder: \(folderURL.path)")
         }
+        print("Using app container folder: \(folderURL.path)")
 
         print("Recording folder exists: \(FileManager.default.fileExists(atPath: folderURL.path))")
 
@@ -76,21 +72,8 @@ class AudioRecorder: NSObject, ObservableObject {
 
         print("Recording to file: \(recordingURL.path)")
 
-        // Setup AVAssetWriter and start it while we have security-scoped access
-        do {
-            try setupAssetWriter(url: recordingURL)
-
-            // Start the asset writer
-            guard assetWriter?.startWriting() == true else {
-                print("Failed to start asset writer. Status: \(String(describing: assetWriter?.status.rawValue)), Error: \(String(describing: assetWriter?.error))")
-                throw RecordingError.writerFailed
-            }
-            print("Asset writer started successfully")
-
-        } catch {
-            print("Failed to setup or start asset writer: \(error)")
-            throw error
-        }
+        // Setup AVAssetWriter
+        try setupAssetWriter(url: recordingURL)
 
         // Setup ScreenCaptureKit stream with selected input device
         let inputDeviceUID = audioManager.selectedInputDevice?.uid
@@ -143,16 +126,12 @@ class AudioRecorder: NSObject, ObservableObject {
         // Finish writing
         await finishWriting()
 
-        // No need for security-scoped cleanup with sandbox disabled
-
         // Clean up
         stream = nil
         streamOutput = nil
         assetWriter = nil
         audioInput = nil
         microphoneInput = nil
-        securityScopedURL = nil
-        needsStopAccessingSecurityScope = false
 
         isRecording = false
         recordingDuration = 0
@@ -230,9 +209,13 @@ class AudioRecorder: NSObject, ObservableObject {
             }
         }
 
-        // Note: startWriting() is now called in startRecording() to ensure it happens
-        // while we have security-scoped access
-        print("Successfully configured asset writer for URL: \(url)")
+        // Start writing
+        guard assetWriter?.startWriting() == true else {
+            print("Failed to start asset writer. Status: \(String(describing: assetWriter?.status.rawValue)), Error: \(String(describing: assetWriter?.error))")
+            throw RecordingError.writerFailed
+        }
+
+        print("Successfully initialized asset writer for URL: \(url)")
     }
 
     private func setupStream(inputDeviceUID: String? = nil) async throws {
