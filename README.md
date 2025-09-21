@@ -62,7 +62,7 @@ open Recorder.xcodeproj
    - Output Device (System Audio)
 3. **Record** - Click "Start Recording" to begin
 4. **Stop** - Click "Stop Recording" when finished
-5. **Access** - Find your recordings in `~/Music/Recordings/`
+5. **Access** - Find your recordings in `~/Documents/Recordings/`
 
 ## 🛠️ Technical Details
 
