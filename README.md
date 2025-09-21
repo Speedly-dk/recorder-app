@@ -33,8 +33,13 @@ A lightweight macOS menu bar app for high-quality audio recording, capturing bot
 1. Download the latest release from the [Releases page](https://github.com/Speedly-dk/recorder-app/releases)
 2. Unzip `Recorder-vX.X.X.zip`
 3. Drag `Recorder.app` to your Applications folder
-4. Right-click and select "Open" on first launch (to bypass Gatekeeper)
+4. **First Launch** (Important - app is not yet notarized):
+   - **Right-click** on Recorder.app and select **"Open"**
+   - Click "Open" in the security dialog
+   - This only needs to be done once
 5. Grant required permissions when prompted
+
+> **Note**: The security warning appears because this is a beta release that isn't yet notarized by Apple. The app is safe and the source code is available for review.
 
 ### Build from Source
 
