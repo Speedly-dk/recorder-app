@@ -2,16 +2,37 @@ import AppKit
 import SwiftUI
 import Combine
 
+/// State machine for popover lifecycle management
+enum PopoverState {
+    case closed
+    case opening
+    case open
+    case closing
+}
+
 class StatusBarController: NSObject, ObservableObject {
     private var statusItem: NSStatusItem!
     private lazy var popover: NSPopover = {
         let pop = NSPopover()
         pop.behavior = .transient
         pop.animates = true
+        pop.delegate = self
         return pop
     }()
-    private var contentViewController: NSViewController?
-    private var monitor: Any?
+
+    // Phase 1.1: Singleton pattern for ContentView
+    private lazy var contentView = ContentView()
+    private lazy var hostingController = NSHostingController(rootView: contentView)
+
+    // Phase 1.2: State management
+    private var popoverState: PopoverState = .closed
+
+    // Phase 1.3: Debouncer for rapid clicks
+    private var toggleDebouncer: DispatchWorkItem?
+
+    // Phase 2.3: Improved event monitor
+    private var eventMonitor: EventMonitor?
+
     private var updateTimer: Timer?
     private var audioRecorder: AudioRecorder?
     private var cancellables = Set<AnyCancellable>()
@@ -36,10 +57,37 @@ class StatusBarController: NSObject, ObservableObject {
         // Set initial icon state
         updateStatusIcon()
 
+        // Setup ContentView once
+        setupContentView()
+
         // Setup observation after initialization completes
         DispatchQueue.main.async { [weak self] in
             self?.setupRecorderObservation()
         }
+
+        // Initialize event monitor with proper handler
+        eventMonitor = EventMonitor { [weak self] in
+            guard let self = self else { return }
+            if self.popoverState == .open {
+                self.closePopover()
+            }
+        }
+    }
+
+    private func setupContentView() {
+        // Configure hosting controller once
+        hostingController.preferredContentSize = NSSize(width: 350, height: 480)
+
+        // Phase 2.2: Add bounds clipping for macOS Sonoma
+        if #available(macOS 14.0, *) {
+            if let view = hostingController.view as? NSView {
+                view.wantsLayer = true
+                view.layer?.masksToBounds = true
+            }
+        }
+
+        // Set the content view controller once
+        popover.contentViewController = hostingController
     }
 
     private func setupRecorderObservation() {
@@ -48,15 +96,16 @@ class StatusBarController: NSObject, ObservableObject {
 
         guard let audioRecorder = audioRecorder else { return }
 
-        // Observe isRecording state
+        // Phase 2.1: Use weak references in all closures
         audioRecorder.$isRecording
             .receive(on: DispatchQueue.main)
             .sink { [weak self] isRecording in
-                self?.handleRecordingStateChange(isRecording)
+                guard let self = self else { return }
+                self.handleRecordingStateChange(isRecording)
             }
             .store(in: &cancellables)
 
-        // Observe recording duration
+        // Observe recording duration with weak reference
         audioRecorder.$recordingDuration
             .receive(on: DispatchQueue.main)
             .sink { [weak self] _ in
@@ -86,57 +135,82 @@ class StatusBarController: NSObject, ObservableObject {
         updateStatusIcon()
     }
 
+    // Phase 1.3: Implement debounced toggle
     @objc func handleClick(_ sender: NSStatusBarButton) {
         print("Status bar button clicked")
 
-        if popover.isShown {
-            closePopover()
-        } else {
-            showPopover()
+        // Cancel any pending toggle
+        toggleDebouncer?.cancel()
+
+        // Create new debounced work item
+        toggleDebouncer = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+            self.performToggle()
+        }
+
+        // Execute after debounce delay
+        if let debouncer = toggleDebouncer {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1, execute: debouncer)
         }
     }
 
-    func showPopover() {
-        guard let button = statusItem.button else {
-            print("ERROR: Status item button is nil when trying to show popover")
+    private func performToggle() {
+        switch popoverState {
+        case .closed:
+            showPopoverWithRetry()
+        case .open:
+            closePopover()
+        case .opening, .closing:
+            // Ignore clicks during transitions
+            print("Ignoring click during transition state: \(popoverState)")
+        }
+    }
+
+    // Phase 3.2: Implement retry mechanism
+    func showPopoverWithRetry(attempts: Int = 3) {
+        guard popoverState == .closed else {
+            print("Cannot show popover - current state: \(popoverState)")
             return
         }
 
-        // Always create a fresh ContentView to avoid state issues
-        let contentView = ContentView()
-        let hostingController = NSHostingController(rootView: contentView)
-        hostingController.preferredContentSize = NSSize(width: 350, height: 480)
+        guard let button = statusItem.button else {
+            print("ERROR: Status item button is nil when trying to show popover")
 
-        popover.contentViewController = hostingController
-        contentViewController = hostingController
+            if attempts > 0 {
+                print("Retrying to show popover, attempts remaining: \(attempts - 1)")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    self?.showPopoverWithRetry(attempts: attempts - 1)
+                }
+            } else {
+                print("Failed to show popover after all retry attempts")
+            }
+            return
+        }
+
+        // Update state machine
+        popoverState = .opening
 
         print("Showing popover...")
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
 
-        // Monitor for clicks outside popover
-        if monitor == nil {
-            monitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-                if let self = self, self.popover.isShown {
-                    self.closePopover()
-                }
-            }
-        }
+        // Start event monitoring
+        eventMonitor?.start()
     }
 
     func closePopover() {
+        guard popoverState == .open else {
+            print("Cannot close popover - current state: \(popoverState)")
+            return
+        }
+
+        // Update state machine
+        popoverState = .closing
+
         print("Closing popover...")
         popover.performClose(nil)
 
-        // Remove event monitor immediately to prevent further events
-        if let monitor = monitor {
-            NSEvent.removeMonitor(monitor)
-            self.monitor = nil
-        }
-
-        // Clear the content view controller after a delay to allow animation
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            self?.contentViewController = nil
-        }
+        // Stop event monitoring immediately
+        eventMonitor?.stop()
     }
 
     func updateStatusIcon() {
@@ -184,32 +258,64 @@ class StatusBarController: NSObject, ObservableObject {
         return formatter.string(from: duration) ?? "00:00"
     }
 
+    // Phase 3.3: Crash-safe deinit
     deinit {
-        // Clean up in reverse order of creation to avoid use-after-free issues
+        print("StatusBarController deinit starting")
 
-        // Cancel all Combine subscriptions
-        cancellables.forEach { $0.cancel() }
+        // Cancel all Combine subscriptions synchronously
         cancellables.removeAll()
 
-        // First stop any active timers
+        // Stop timer immediately
         updateTimer?.invalidate()
         updateTimer = nil
 
-        // Remove event monitor
-        if let monitor = monitor {
-            NSEvent.removeMonitor(monitor)
-            self.monitor = nil
+        // Stop event monitor
+        eventMonitor?.stop()
+        eventMonitor = nil
+
+        // Close popover if shown
+        if popover.isShown {
+            popover.close()
         }
 
-        // Clear popover content before destroying popover
-        popover.close()
-        popover.contentViewController = nil
-        contentViewController = nil
+        // Clear popover delegate
+        popover.delegate = nil
 
-        // Finally remove status item
+        // Clear popover content
+        popover.contentViewController = nil
+
+        // Remove status item
         if let statusItem = statusItem {
             NSStatusBar.system.removeStatusItem(statusItem)
             self.statusItem = nil
         }
+
+        print("StatusBarController deinit completed")
+    }
+}
+
+// Phase 3.1: Add NSPopoverDelegate
+extension StatusBarController: NSPopoverDelegate {
+    func popoverDidShow(_ notification: Notification) {
+        print("Popover did show")
+        popoverState = .open
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        print("Popover did close")
+        popoverState = .closed
+
+        // Ensure event monitor is stopped
+        eventMonitor?.stop()
+    }
+
+    func popoverWillShow(_ notification: Notification) {
+        print("Popover will show")
+        popoverState = .opening
+    }
+
+    func popoverWillClose(_ notification: Notification) {
+        print("Popover will close")
+        popoverState = .closing
     }
 }
