@@ -31,11 +31,19 @@ class AudioManager: ObservableObject {
         inputDevices = getAudioDevices(isInput: true)
         outputDevices = getAudioDevices(isInput: false)
 
-        if selectedInputDevice == nil || !inputDevices.contains(selectedInputDevice!) {
+        if let device = selectedInputDevice {
+            if !inputDevices.contains(device) {
+                selectedInputDevice = inputDevices.first
+            }
+        } else {
             selectedInputDevice = inputDevices.first
         }
 
-        if selectedOutputDevice == nil || !outputDevices.contains(selectedOutputDevice!) {
+        if let device = selectedOutputDevice {
+            if !outputDevices.contains(device) {
+                selectedOutputDevice = getDefaultOutputDevice() ?? outputDevices.first
+            }
+        } else {
             selectedOutputDevice = getDefaultOutputDevice() ?? outputDevices.first
         }
     }
