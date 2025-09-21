@@ -10,6 +10,7 @@ final class AppState: ObservableObject {
     let audioManager = AudioManager()
     let settings = RecorderSettings()
     let audioRecorder = AudioRecorder()
+    let updateChecker = UpdateChecker()
 
     private init() {
         // Initialize once at app startup

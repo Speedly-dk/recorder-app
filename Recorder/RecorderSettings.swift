@@ -4,6 +4,7 @@ import Combine
 class RecorderSettings: ObservableObject {
     @AppStorage("selectedInputDeviceUID") private var storedInputDeviceUID = ""
     @AppStorage("selectedOutputDeviceUID") private var storedOutputDeviceUID = ""
+    @AppStorage("checkForUpdates") var checkForUpdates = true
 
     @Published var selectedInputDeviceUID: String = ""
     @Published var selectedOutputDeviceUID: String = ""

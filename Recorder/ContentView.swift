@@ -11,12 +11,41 @@ struct ContentView: View {
     private var audioManager: AudioManager { appState.audioManager }
     private var settings: RecorderSettings { appState.settings }
     private var audioRecorder: AudioRecorder { appState.audioRecorder }
+    private var updateChecker: UpdateChecker { appState.updateChecker }
 
     var body: some View {
         VStack(spacing: 20) {
             Text("Recorder Settings")
                 .font(.headline)
                 .padding(.top)
+
+            // Update notification
+            if updateChecker.updateAvailable {
+                HStack {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .foregroundColor(.accentColor)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Update Available")
+                            .font(.caption)
+                            .fontWeight(.medium)
+                        if let version = updateChecker.latestVersion {
+                            Text("Version \(version) is available")
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    Spacer()
+                    Button("Update") {
+                        updateChecker.openReleasePage()
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                .padding(10)
+                .background(Color.accentColor.opacity(0.1))
+                .cornerRadius(8)
+                .padding(.horizontal)
+            }
 
             // Recording Controls
             VStack(spacing: 12) {
@@ -201,10 +230,15 @@ struct ContentView: View {
 
             Spacer()
 
-            // Menu button with quit option
+            // Menu button with preferences and quit options
             HStack {
                 Spacer()
                 Menu {
+                    Toggle("Check for Updates", isOn: Binding(
+                        get: { appState.settings.checkForUpdates },
+                        set: { appState.settings.checkForUpdates = $0 }
+                    ))
+                    Divider()
                     Button("Quit") {
                         NSApplication.shared.terminate(nil)
                     }

@@ -19,6 +19,14 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Ensure the app doesn't terminate when last window closes
         NSApp.setActivationPolicy(.accessory)
+
+        // Check for updates if enabled
+        Task { @MainActor in
+            let appState = AppState.shared
+            if appState.settings.checkForUpdates {
+                await appState.updateChecker.checkForUpdates()
+            }
+        }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
