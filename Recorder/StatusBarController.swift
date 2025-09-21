@@ -4,7 +4,12 @@ import Combine
 
 class StatusBarController: NSObject, ObservableObject {
     private var statusItem: NSStatusItem!
-    private var popover: NSPopover!
+    private lazy var popover: NSPopover = {
+        let pop = NSPopover()
+        pop.behavior = .transient
+        pop.animates = true
+        return pop
+    }()
     private var contentViewController: NSViewController?
     private var monitor: Any?
     private var updateTimer: Timer?
@@ -25,11 +30,6 @@ class StatusBarController: NSObject, ObservableObject {
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         }
 
-        // Create popover but don't set content yet
-        popover = NSPopover()
-        popover.behavior = .transient
-        popover.animates = true
-
         // Keep status item always visible
         statusItem.isVisible = true
 
@@ -39,12 +39,6 @@ class StatusBarController: NSObject, ObservableObject {
 
     @objc func handleClick(_ sender: NSStatusBarButton) {
         print("Status bar button clicked")
-
-        // Add guard to prevent potential crashes
-        guard let popover = popover else {
-            print("ERROR: Popover is nil")
-            return
-        }
 
         if popover.isShown {
             closePopover()
@@ -56,11 +50,6 @@ class StatusBarController: NSObject, ObservableObject {
     func showPopover() {
         guard let button = statusItem.button else {
             print("ERROR: Status item button is nil when trying to show popover")
-            return
-        }
-
-        guard let popover = popover else {
-            print("ERROR: Popover is nil when trying to show")
             return
         }
 
@@ -182,10 +171,9 @@ class StatusBarController: NSObject, ObservableObject {
         }
 
         // Clear popover content before destroying popover
-        popover?.close()
-        popover?.contentViewController = nil
+        popover.close()
+        popover.contentViewController = nil
         contentViewController = nil
-        popover = nil
 
         // Finally remove status item
         if let statusItem = statusItem {
