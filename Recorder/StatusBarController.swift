@@ -102,17 +102,13 @@ class StatusBarController: NSObject, ObservableObject {
             return
         }
 
-        // Create content view controller only once and reuse it
-        // ContentView now uses shared AppState for its StateObjects
-        if contentViewController == nil {
-            let contentView = ContentView()
-            contentViewController = NSHostingController(rootView: contentView)
+        // Always create a fresh ContentView to avoid state issues
+        let contentView = ContentView()
+        let hostingController = NSHostingController(rootView: contentView)
+        hostingController.preferredContentSize = NSSize(width: 350, height: 480)
 
-            // Ensure the content size is set
-            contentViewController?.preferredContentSize = NSSize(width: 350, height: 480)
-        }
-
-        popover.contentViewController = contentViewController
+        popover.contentViewController = hostingController
+        contentViewController = hostingController
 
         print("Showing popover...")
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -137,15 +133,9 @@ class StatusBarController: NSObject, ObservableObject {
             self.monitor = nil
         }
 
-        // Delay clearing the content view controller to avoid heap corruption
-        // This allows the popover animation to complete before releasing resources
+        // Clear the content view controller after a delay to allow animation
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
-            guard let self = self else { return }
-            // Only clear if popover is truly closed
-            if !self.popover.isShown {
-                // Don't clear contentViewController - keep it for reuse
-                // This prevents recreating StateObjects
-            }
+            self?.contentViewController = nil
         }
     }
 

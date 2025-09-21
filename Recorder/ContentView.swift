@@ -3,10 +3,10 @@ import AppKit
 import AVFoundation
 
 struct ContentView: View {
-    @StateObject private var audioManager = AppState.shared.audioManager
-    @StateObject private var settings = AppState.shared.settings
-    @StateObject private var audioRecorder = AppState.shared.audioRecorder
-    @StateObject private var updateChecker = AppState.shared.updateChecker
+    @ObservedObject private var audioManager = AppState.shared.audioManager
+    @ObservedObject private var settings = AppState.shared.settings
+    @ObservedObject private var audioRecorder = AppState.shared.audioRecorder
+    @ObservedObject private var updateChecker = AppState.shared.updateChecker
     @State private var isMicrophoneAccessGranted = false
     @State private var isRefreshing = false
     @State private var showingError = false
