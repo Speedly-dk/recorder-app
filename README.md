@@ -62,7 +62,7 @@ open Recorder.xcodeproj
    - Output Device (System Audio)
 3. **Record** - Click "Start Recording" to begin
 4. **Stop** - Click "Stop Recording" when finished
-5. **Access** - Find your recordings in `~/Documents/Recordings/`
+5. **Access** - Click "Open in Finder" to access recordings (stored in the app's container)
 
 ## 🛠️ Technical Details
 
@@ -80,6 +80,12 @@ open Recorder.xcodeproj
 - **Sample Rate**: 48 kHz
 - **Channels**: Stereo
 - **Bitrate**: 128 kbps
+
+### Storage Location
+
+Recordings are saved in the app's sandboxed container:
+- **Path**: `~/Library/Containers/dk.ap3.Recorder/Data/Documents/Recordings/`
+- **Access**: Use the "Open in Finder" button in the app for easy access
 
 ### Project Structure
 
