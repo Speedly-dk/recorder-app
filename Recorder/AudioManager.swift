@@ -28,26 +28,26 @@ class AudioManager: ObservableObject {
     }
 
     private func setupNotifications() {
-        var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDevices,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
+        // For simplicity and reliability, we'll just refresh devices periodically
+        // CoreAudio property listeners require complex C-style callbacks
+        deviceCheckTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+            self?.checkForDeviceChanges()
+        }
+    }
 
-        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+    private var lastInputDeviceCount = 0
+    private var lastOutputDeviceCount = 0
+    private var deviceCheckTimer: Timer?
 
-        AudioObjectAddPropertyListener(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress,
-            { _, _, clientData in
-                let manager = Unmanaged<AudioManager>.fromOpaque(clientData!).takeUnretainedValue()
-                DispatchQueue.main.async {
-                    manager.refreshDevices()
-                }
-                return noErr
-            },
-            selfPtr
-        )
+    private func checkForDeviceChanges() {
+        let currentInputCount = getAudioDevices(isInput: true).count
+        let currentOutputCount = getAudioDevices(isInput: false).count
+
+        if currentInputCount != lastInputDeviceCount || currentOutputCount != lastOutputDeviceCount {
+            refreshDevices()
+            lastInputDeviceCount = currentInputCount
+            lastOutputDeviceCount = currentOutputCount
+        }
     }
 
 
@@ -198,19 +198,6 @@ class AudioManager: ObservableObject {
     }
 
     deinit {
-        var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDevices,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMain
-        )
-
-        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
-
-        AudioObjectRemovePropertyListener(
-            AudioObjectID(kAudioObjectSystemObject),
-            &propertyAddress,
-            { _, _, _ in return noErr },
-            selfPtr
-        )
+        deviceCheckTimer?.invalidate()
     }
 }
