@@ -13,8 +13,8 @@ class StatusBarController: NSObject, ObservableObject {
     private var contentViewController: NSViewController?
     private var monitor: Any?
     private var updateTimer: Timer?
-    @Published var isRecording = false
-    @Published var recordingDuration: TimeInterval = 0
+    private var audioRecorder: AudioRecorder?
+    private var cancellables = Set<AnyCancellable>()
 
     override init() {
         super.init()
@@ -34,6 +34,52 @@ class StatusBarController: NSObject, ObservableObject {
         statusItem.isVisible = true
 
         // Set initial icon state
+        updateStatusIcon()
+
+        // Connect to AudioRecorder and observe state changes
+        Task { @MainActor in
+            audioRecorder = AppState.shared.audioRecorder
+            setupRecorderObservation()
+        }
+    }
+
+    private func setupRecorderObservation() {
+        guard let audioRecorder = audioRecorder else { return }
+
+        // Observe isRecording state
+        audioRecorder.$isRecording
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] isRecording in
+                self?.handleRecordingStateChange(isRecording)
+            }
+            .store(in: &cancellables)
+
+        // Observe recording duration
+        audioRecorder.$recordingDuration
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                if audioRecorder.isRecording {
+                    self?.updateStatusIcon()
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    private func handleRecordingStateChange(_ isRecording: Bool) {
+        if isRecording {
+            // Start timer to update the icon regularly
+            updateTimer?.invalidate()
+            updateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+                self?.updateStatusIcon()
+            }
+            RunLoop.current.add(updateTimer!, forMode: .common)
+        } else {
+            // Stop timer when recording stops
+            updateTimer?.invalidate()
+            updateTimer = nil
+        }
+
+        // Update icon immediately
         updateStatusIcon()
     }
 
@@ -97,11 +143,12 @@ class StatusBarController: NSObject, ObservableObject {
     }
 
     func updateStatusIcon() {
-        guard let button = statusItem.button else { return }
+        guard let button = statusItem.button,
+              let audioRecorder = audioRecorder else { return }
 
-        if isRecording {
+        if audioRecorder.isRecording {
             // Show icon with duration text
-            let durationString = formatDuration(recordingDuration)
+            let durationString = formatDuration(audioRecorder.recordingDuration)
 
             // Create attributed string with icon and duration
             let attachment = NSTextAttachment()
@@ -128,26 +175,6 @@ class StatusBarController: NSObject, ObservableObject {
         }
     }
 
-    func setRecordingState(_ recording: Bool, duration: TimeInterval = 0) {
-        isRecording = recording
-        recordingDuration = duration
-
-        if recording {
-            // Start timer to update duration display
-            updateTimer?.invalidate()
-            updateTimer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
-                self?.updateStatusIcon()
-            }
-            RunLoop.current.add(updateTimer!, forMode: .common)
-        } else {
-            // Stop timer
-            updateTimer?.invalidate()
-            updateTimer = nil
-            recordingDuration = 0
-        }
-
-        updateStatusIcon()
-    }
 
     private func formatDuration(_ duration: TimeInterval) -> String {
         let formatter = DateComponentsFormatter()
@@ -159,6 +186,10 @@ class StatusBarController: NSObject, ObservableObject {
 
     deinit {
         // Clean up in reverse order of creation to avoid use-after-free issues
+
+        // Cancel all Combine subscriptions
+        cancellables.forEach { $0.cancel() }
+        cancellables.removeAll()
 
         // First stop any active timers
         updateTimer?.invalidate()
