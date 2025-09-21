@@ -86,17 +86,8 @@ class AudioManager: ObservableObject {
     private func getDeviceInfo(deviceID: AudioDeviceID, isInput: Bool) -> AudioDevice? {
         let scope = isInput ? kAudioDevicePropertyScopeInput : kAudioDevicePropertyScopeOutput
 
-        var streamConfigAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyStreamConfiguration,
-            mScope: scope,
-            mElement: kAudioObjectPropertyElementMain
-        )
-
-        var streamConfigSize: UInt32 = 0
-        AudioObjectGetPropertyDataSize(deviceID, &streamConfigAddress, 0, nil, &streamConfigSize)
-
-        let streamCount = Int(streamConfigSize) - MemoryLayout<UInt32>.size
-        guard streamCount > 0 else { return nil }
+        // Check if device has channels for the specified scope
+        guard hasChannelsForScope(deviceID: deviceID, scope: scope) else { return nil }
 
         var nameAddress = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyDeviceNameCFString,
@@ -167,6 +158,59 @@ class AudioManager: ObservableObject {
         guard result == noErr else { return nil }
 
         return outputDevices.first { $0.id == deviceID }
+    }
+
+    private func hasChannelsForScope(deviceID: AudioDeviceID, scope: AudioObjectPropertyScope) -> Bool {
+        var streamConfigAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioDevicePropertyStreamConfiguration,
+            mScope: scope,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        // Get the size of stream configuration
+        var streamConfigSize: UInt32 = 0
+        var status = AudioObjectGetPropertyDataSize(deviceID, &streamConfigAddress, 0, nil, &streamConfigSize)
+
+        guard status == noErr, streamConfigSize > 0 else { return false }
+
+        // Allocate buffer for stream configuration
+        let bufferCount = Int(streamConfigSize) / MemoryLayout<AudioBuffer>.size
+        let audioBufferList = UnsafeMutablePointer<AudioBufferList>.allocate(capacity: 1)
+        defer { audioBufferList.deallocate() }
+
+        // Initialize the buffer list
+        audioBufferList.pointee.mNumberBuffers = UInt32(bufferCount)
+
+        // Get the actual stream configuration
+        status = AudioObjectGetPropertyData(
+            deviceID,
+            &streamConfigAddress,
+            0,
+            nil,
+            &streamConfigSize,
+            audioBufferList
+        )
+
+        guard status == noErr else { return false }
+
+        // Count total channels across all buffers
+        var totalChannels: UInt32 = 0
+        let bufferList = audioBufferList.pointee
+
+        // Access the mBuffers array properly
+        withUnsafePointer(to: bufferList.mBuffers) { buffersPtr in
+            let buffersBaseAddress = UnsafeRawPointer(buffersPtr).assumingMemoryBound(to: AudioBuffer.self)
+            let buffers = UnsafeBufferPointer(
+                start: buffersBaseAddress,
+                count: Int(bufferList.mNumberBuffers)
+            )
+
+            for buffer in buffers {
+                totalChannels += buffer.mNumberChannels
+            }
+        }
+
+        return totalChannels > 0
     }
 
     func requestMicrophonePermission(completion: @escaping (Bool) -> Void) {
