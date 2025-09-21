@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 
 class RecorderSettings: ObservableObject {
     @AppStorage("recordingsFolderPath") private var storedFolderPath = ""
