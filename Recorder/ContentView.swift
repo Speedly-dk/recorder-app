@@ -5,14 +5,55 @@ import AVFoundation
 struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
     @StateObject private var settings = RecorderSettings()
+    @StateObject private var audioRecorder = AudioRecorder()
     @State private var isMicrophoneAccessGranted = false
     @State private var isRefreshing = false
+    @State private var showingError = false
 
     var body: some View {
         VStack(spacing: 20) {
             Text("Recorder Settings")
                 .font(.headline)
                 .padding(.top)
+
+            // Recording Controls
+            VStack(spacing: 12) {
+                Button(action: toggleRecording) {
+                    HStack(spacing: 8) {
+                        Image(systemName: audioRecorder.isRecording ? "stop.circle.fill" : "record.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(audioRecorder.isRecording ? .red : .accentColor)
+
+                        Text(audioRecorder.isRecording ? "Stop Recording" : "Start Recording")
+                            .font(.system(size: 14, weight: .medium))
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(audioRecorder.isRecording ? Color.red.opacity(0.1) : Color.accentColor.opacity(0.1))
+                    .cornerRadius(8)
+                }
+                .buttonStyle(.plain)
+                .disabled(!settings.folderExists() || (audioManager.selectedInputDevice == nil && audioManager.selectedOutputDevice == nil))
+
+                if audioRecorder.isRecording {
+                    HStack {
+                        Image(systemName: "waveform")
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .symbolEffect(.variableColor.iterative.dimInactiveLayers.nonReversing)
+
+                        Text("Recording: \(formatDuration(audioRecorder.recordingDuration))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+
+                        Spacer()
+                    }
+                    .padding(.horizontal, 8)
+                }
+            }
+            .padding(.horizontal)
+
+            Divider()
 
             VStack(alignment: .leading, spacing: 15) {
                 VStack(alignment: .leading, spacing: 8) {
@@ -153,7 +194,7 @@ struct ContentView: View {
 
             Spacer()
         }
-        .frame(width: 300, height: 400)
+        .frame(width: 350, height: 480)
         .padding()
         .background(Color(NSColor.controlBackgroundColor))
         .onAppear {
@@ -171,6 +212,11 @@ struct ContentView: View {
                 isMicrophoneAccessGranted = false
             }
             restoreSelectedDevices()
+        }
+        .alert("Recording Error", isPresented: $showingError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(audioRecorder.errorMessage ?? "An unknown error occurred")
         }
     }
 
@@ -234,6 +280,33 @@ struct ContentView: View {
         }
         if !settings.selectedOutputDeviceUID.isEmpty {
             audioManager.selectedOutputDevice = audioManager.outputDevices.first { $0.uid == settings.selectedOutputDeviceUID }
+        }
+    }
+
+    private func toggleRecording() {
+        Task {
+            if audioRecorder.isRecording {
+                await audioRecorder.stopRecording()
+            } else {
+                do {
+                    try await audioRecorder.startRecording(audioManager: audioManager, settings: settings)
+                } catch {
+                    audioRecorder.errorMessage = error.localizedDescription
+                    showingError = true
+                }
+            }
+        }
+    }
+
+    private func formatDuration(_ duration: TimeInterval) -> String {
+        let hours = Int(duration) / 3600
+        let minutes = (Int(duration) % 3600) / 60
+        let seconds = Int(duration) % 60
+
+        if hours > 0 {
+            return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
+        } else {
+            return String(format: "%02d:%02d", minutes, seconds)
         }
     }
 }
