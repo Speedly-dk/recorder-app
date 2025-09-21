@@ -34,16 +34,20 @@ class AudioManager: ObservableObject {
             mElement: kAudioObjectPropertyElementMain
         )
 
-        _ = AudioObjectAddPropertyListenerBlock(
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+
+        AudioObjectAddPropertyListener(
             AudioObjectID(kAudioObjectSystemObject),
             &propertyAddress,
-            nil
-        ) { [weak self] _, _ in
-            DispatchQueue.main.async {
-                self?.refreshDevices()
-            }
-            return noErr
-        }
+            { _, _, clientData in
+                let manager = Unmanaged<AudioManager>.fromOpaque(clientData!).takeUnretainedValue()
+                DispatchQueue.main.async {
+                    manager.refreshDevices()
+                }
+                return noErr
+            },
+            selfPtr
+        )
     }
 
 
@@ -194,6 +198,19 @@ class AudioManager: ObservableObject {
     }
 
     deinit {
-        // Cleanup is handled automatically for blocks
+        var propertyAddress = AudioObjectPropertyAddress(
+            mSelector: kAudioHardwarePropertyDevices,
+            mScope: kAudioObjectPropertyScopeGlobal,
+            mElement: kAudioObjectPropertyElementMain
+        )
+
+        let selfPtr = Unmanaged.passUnretained(self).toOpaque()
+
+        AudioObjectRemovePropertyListener(
+            AudioObjectID(kAudioObjectSystemObject),
+            &propertyAddress,
+            { _, _, _ in return noErr },
+            selfPtr
+        )
     }
 }
