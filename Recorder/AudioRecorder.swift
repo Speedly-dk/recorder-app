@@ -48,38 +48,22 @@ class AudioRecorder: NSObject, ObservableObject {
         // Setup recording file
         let fileName = generateFileName()
 
-        // Try to access the security-scoped folder first
+        // With sandbox disabled, we can directly use the selected folder path
         let folderURL: URL
 
-        if let accessInfo = settings.startAccessingSecurityScopedFolder() {
-            // Successfully resolved bookmark and got access
-            folderURL = accessInfo.url
-            securityScopedURL = accessInfo.url
-            needsStopAccessingSecurityScope = accessInfo.needsStop
-            print("Using security-scoped folder: \(folderURL.path)")
-        } else if !settings.recordingsFolderPath.isEmpty {
-            // Try to use the stored path directly (might be within sandbox)
-            let testURL = URL(fileURLWithPath: settings.recordingsFolderPath)
-
-            // Check if we can write to this location
-            if FileManager.default.isWritableFile(atPath: testURL.path) ||
-               settings.recordingsFolderPath.contains("/Library/Containers/") {
-                folderURL = testURL
-                print("Using stored path (within sandbox): \(folderURL.path)")
-            } else {
-                // Can't access the stored path, fall back to default
-                print("Cannot access stored path, falling back to container")
-                let containerDocs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-                folderURL = containerDocs.appendingPathComponent("Recordings")
-                try? FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-                print("Using fallback container path: \(folderURL.path)")
-            }
+        if !settings.recordingsFolderPath.isEmpty {
+            folderURL = URL(fileURLWithPath: settings.recordingsFolderPath)
+            print("Using selected folder: \(folderURL.path)")
         } else {
-            // No folder selected, use default
-            let containerDocs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
-            folderURL = containerDocs.appendingPathComponent("Recordings")
-            try? FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
-            print("Using default container path: \(folderURL.path)")
+            // No folder selected, use default Documents/Recordings
+            let documentsURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+            folderURL = documentsURL.appendingPathComponent("Recordings")
+
+            // Create the Recordings folder if it doesn't exist
+            if !FileManager.default.fileExists(atPath: folderURL.path) {
+                try? FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true)
+            }
+            print("Using default folder: \(folderURL.path)")
         }
 
         print("Recording folder exists: \(FileManager.default.fileExists(atPath: folderURL.path))")
@@ -96,27 +80,15 @@ class AudioRecorder: NSObject, ObservableObject {
         do {
             try setupAssetWriter(url: recordingURL)
 
-            // Start the asset writer while we have security-scoped access
+            // Start the asset writer
             guard assetWriter?.startWriting() == true else {
                 print("Failed to start asset writer. Status: \(String(describing: assetWriter?.status.rawValue)), Error: \(String(describing: assetWriter?.error))")
-
-                // Clean up security-scoped access on failure
-                if needsStopAccessingSecurityScope, let url = securityScopedURL {
-                    url.stopAccessingSecurityScopedResource()
-                }
-
                 throw RecordingError.writerFailed
             }
             print("Asset writer started successfully")
 
         } catch {
             print("Failed to setup or start asset writer: \(error)")
-
-            // Clean up security-scoped access on failure
-            if needsStopAccessingSecurityScope, let url = securityScopedURL {
-                url.stopAccessingSecurityScopedResource()
-            }
-
             throw error
         }
 
@@ -139,11 +111,6 @@ class AudioRecorder: NSObject, ObservableObject {
             audioInput = nil
             stream = nil
             streamOutput = nil
-
-            // Clean up security-scoped access
-            if needsStopAccessingSecurityScope, let url = securityScopedURL {
-                url.stopAccessingSecurityScopedResource()
-            }
 
             throw RecordingError.writerFailed
         }
@@ -176,11 +143,7 @@ class AudioRecorder: NSObject, ObservableObject {
         // Finish writing
         await finishWriting()
 
-        // Stop accessing security-scoped resource if needed
-        if needsStopAccessingSecurityScope, let url = securityScopedURL {
-            url.stopAccessingSecurityScopedResource()
-            print("Stopped accessing security-scoped resource: \(url.path)")
-        }
+        // No need for security-scoped cleanup with sandbox disabled
 
         // Clean up
         stream = nil
