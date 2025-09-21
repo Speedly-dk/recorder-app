@@ -92,8 +92,33 @@ class AudioRecorder: NSObject, ObservableObject {
 
         print("Recording to file: \(recordingURL.path)")
 
-        // Setup AVAssetWriter
-        try setupAssetWriter(url: recordingURL)
+        // Setup AVAssetWriter and start it while we have security-scoped access
+        do {
+            try setupAssetWriter(url: recordingURL)
+
+            // Start the asset writer while we have security-scoped access
+            guard assetWriter?.startWriting() == true else {
+                print("Failed to start asset writer. Status: \(String(describing: assetWriter?.status.rawValue)), Error: \(String(describing: assetWriter?.error))")
+
+                // Clean up security-scoped access on failure
+                if needsStopAccessingSecurityScope, let url = securityScopedURL {
+                    url.stopAccessingSecurityScopedResource()
+                }
+
+                throw RecordingError.writerFailed
+            }
+            print("Asset writer started successfully")
+
+        } catch {
+            print("Failed to setup or start asset writer: \(error)")
+
+            // Clean up security-scoped access on failure
+            if needsStopAccessingSecurityScope, let url = securityScopedURL {
+                url.stopAccessingSecurityScopedResource()
+            }
+
+            throw error
+        }
 
         // Setup ScreenCaptureKit stream with selected input device
         let inputDeviceUID = audioManager.selectedInputDevice?.uid
@@ -114,6 +139,11 @@ class AudioRecorder: NSObject, ObservableObject {
             audioInput = nil
             stream = nil
             streamOutput = nil
+
+            // Clean up security-scoped access
+            if needsStopAccessingSecurityScope, let url = securityScopedURL {
+                url.stopAccessingSecurityScopedResource()
+            }
 
             throw RecordingError.writerFailed
         }
@@ -171,20 +201,22 @@ class AudioRecorder: NSObject, ObservableObject {
     }
 
     private func setupAssetWriter(url: URL) throws {
-        // Ensure the directory exists
+        // Note: Directory should already exist since we either selected it via NSOpenPanel
+        // or are using the container directory
         let folderURL = url.deletingLastPathComponent()
-        print("Creating directory if needed: \(folderURL.path)")
+        print("Checking directory: \(folderURL.path)")
 
-        do {
-            if !FileManager.default.fileExists(atPath: folderURL.path) {
+        if !FileManager.default.fileExists(atPath: folderURL.path) {
+            print("Warning: Directory doesn't exist, will try to create: \(folderURL.path)")
+            do {
                 try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: true, attributes: nil)
                 print("Created directory: \(folderURL.path)")
-            } else {
-                print("Directory already exists: \(folderURL.path)")
+            } catch {
+                print("Failed to create directory: \(error)")
+                throw RecordingError.invalidURL
             }
-        } catch {
-            print("Failed to create directory: \(error)")
-            throw RecordingError.invalidURL
+        } else {
+            print("Directory exists: \(folderURL.path)")
         }
 
         // Remove existing file if needed
@@ -235,13 +267,9 @@ class AudioRecorder: NSObject, ObservableObject {
             }
         }
 
-        // Start writing
-        guard assetWriter?.startWriting() == true else {
-            print("Failed to start asset writer. Status: \(String(describing: assetWriter?.status.rawValue)), Error: \(String(describing: assetWriter?.error))")
-            throw RecordingError.writerFailed
-        }
-
-        print("Successfully initialized asset writer for URL: \(url)")
+        // Note: startWriting() is now called in startRecording() to ensure it happens
+        // while we have security-scoped access
+        print("Successfully configured asset writer for URL: \(url)")
     }
 
     private func setupStream(inputDeviceUID: String? = nil) async throws {
