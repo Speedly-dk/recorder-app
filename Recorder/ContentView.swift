@@ -180,11 +180,37 @@ struct ContentView: View {
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
-        panel.message = "Choose a folder for recordings"
+        panel.message = "Choose a folder for recordings. The app will have permission to save recordings here."
+        panel.prompt = "Select Folder"
 
         if panel.runModal() == .OK {
             if let url = panel.url {
-                settings.updateRecordingsFolder(url.path)
+                // Start accessing the security-scoped resource
+                let didStart = url.startAccessingSecurityScopedResource()
+                defer {
+                    if didStart {
+                        url.stopAccessingSecurityScopedResource()
+                    }
+                }
+
+                // Create a security-scoped bookmark for persistent access
+                if let bookmarkData = settings.saveBookmark(for: url) {
+                    print("Successfully saved bookmark for: \(url.path)")
+                } else {
+                    // Fall back to just saving the path
+                    settings.updateRecordingsFolder(url.path)
+                    print("Warning: Could not create bookmark, saved path only: \(url.path)")
+
+                    // Show warning to user
+                    DispatchQueue.main.async {
+                        let alert = NSAlert()
+                        alert.messageText = "Folder Access Warning"
+                        alert.informativeText = "The folder was selected, but persistent access couldn't be established. You may need to reselect the folder after restarting the app."
+                        alert.alertStyle = .warning
+                        alert.addButton(withTitle: "OK")
+                        alert.runModal()
+                    }
+                }
             }
         }
     }
