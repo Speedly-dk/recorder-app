@@ -23,7 +23,10 @@ class AudioManager: ObservableObject {
     }
 
     init() {
-        refreshDevices()
+        // Delay initial refresh to avoid initialization issues
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            self?.refreshDevices()
+        }
     }
 
 
@@ -105,18 +108,18 @@ class AudioManager: ObservableObject {
 
         var name: CFString?
         var nameSize = UInt32(MemoryLayout<CFString?>.size)
-        let nameResult = withUnsafeMutablePointer(to: &name) { namePtr in
-            AudioObjectGetPropertyData(
-                deviceID,
-                &nameAddress,
-                0,
-                nil,
-                &nameSize,
-                UnsafeMutableRawPointer(namePtr)
-            )
-        }
+        let nameResult = AudioObjectGetPropertyData(
+            deviceID,
+            &nameAddress,
+            0,
+            nil,
+            &nameSize,
+            &name
+        )
 
-        guard nameResult == noErr else { return nil }
+        guard nameResult == noErr, let deviceName = name as String? else {
+            return nil
+        }
 
         var uidAddress = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyDeviceUID,
@@ -126,21 +129,21 @@ class AudioManager: ObservableObject {
 
         var uid: CFString?
         var uidSize = UInt32(MemoryLayout<CFString?>.size)
-        withUnsafeMutablePointer(to: &uid) { uidPtr in
-            AudioObjectGetPropertyData(
-                deviceID,
-                &uidAddress,
-                0,
-                nil,
-                &uidSize,
-                UnsafeMutableRawPointer(uidPtr)
-            )
-        }
+        let uidResult = AudioObjectGetPropertyData(
+            deviceID,
+            &uidAddress,
+            0,
+            nil,
+            &uidSize,
+            &uid
+        )
+
+        let deviceUID = (uid as String?) ?? ""
 
         return AudioDevice(
             id: deviceID,
-            name: (name as String?) ?? "Unknown",
-            uid: (uid as String?) ?? ""
+            name: deviceName,
+            uid: deviceUID
         )
     }
 
