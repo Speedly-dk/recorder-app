@@ -6,29 +6,43 @@ class RecorderSettings: ObservableObject {
     @AppStorage("selectedInputDeviceUID") private var storedInputDeviceUID = ""
     @AppStorage("selectedOutputDeviceUID") private var storedOutputDeviceUID = ""
 
-    @Published var recordingsFolderPath: String {
-        didSet {
-            storedFolderPath = recordingsFolderPath
-        }
-    }
-
-    @Published var selectedInputDeviceUID: String {
-        didSet {
-            storedInputDeviceUID = selectedInputDeviceUID
-        }
-    }
-
-    @Published var selectedOutputDeviceUID: String {
-        didSet {
-            storedOutputDeviceUID = selectedOutputDeviceUID
-        }
-    }
+    @Published var recordingsFolderPath: String = ""
+    @Published var selectedInputDeviceUID: String = ""
+    @Published var selectedOutputDeviceUID: String = ""
 
     init() {
-        self.recordingsFolderPath = storedFolderPath.isEmpty ? defaultRecordingsPath() : storedFolderPath
+        let defaultPath = storedFolderPath.isEmpty ? defaultRecordingsPath() : storedFolderPath
+        self.recordingsFolderPath = defaultPath
         self.selectedInputDeviceUID = storedInputDeviceUID
         self.selectedOutputDeviceUID = storedOutputDeviceUID
+
+        setupObservers()
     }
+
+    private func setupObservers() {
+        $recordingsFolderPath
+            .dropFirst()
+            .sink { [weak self] newPath in
+                self?.storedFolderPath = newPath
+            }
+            .store(in: &cancellables)
+
+        $selectedInputDeviceUID
+            .dropFirst()
+            .sink { [weak self] newUID in
+                self?.storedInputDeviceUID = newUID
+            }
+            .store(in: &cancellables)
+
+        $selectedOutputDeviceUID
+            .dropFirst()
+            .sink { [weak self] newUID in
+                self?.storedOutputDeviceUID = newUID
+            }
+            .store(in: &cancellables)
+    }
+
+    private var cancellables = Set<AnyCancellable>()
 
     private func defaultRecordingsPath() -> String {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
