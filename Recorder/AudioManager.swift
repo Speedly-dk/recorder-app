@@ -104,16 +104,18 @@ class AudioManager: ObservableObject {
             mElement: kAudioObjectPropertyElementMain
         )
 
-        var name: CFString = "" as CFString
-        var nameSize = UInt32(MemoryLayout<CFString>.size)
-        let nameResult = AudioObjectGetPropertyData(
-            deviceID,
-            &nameAddress,
-            0,
-            nil,
-            &nameSize,
-            &name
-        )
+        var name: CFString?
+        var nameSize = UInt32(MemoryLayout<CFString?>.size)
+        let nameResult = withUnsafeMutablePointer(to: &name) { namePtr in
+            AudioObjectGetPropertyData(
+                deviceID,
+                &nameAddress,
+                0,
+                nil,
+                &nameSize,
+                UnsafeMutableRawPointer(namePtr)
+            )
+        }
 
         guard nameResult == noErr else { return nil }
 
@@ -123,21 +125,23 @@ class AudioManager: ObservableObject {
             mElement: kAudioObjectPropertyElementMain
         )
 
-        var uid: CFString = "" as CFString
-        var uidSize = UInt32(MemoryLayout<CFString>.size)
-        AudioObjectGetPropertyData(
-            deviceID,
-            &uidAddress,
-            0,
-            nil,
-            &uidSize,
-            &uid
-        )
+        var uid: CFString?
+        var uidSize = UInt32(MemoryLayout<CFString?>.size)
+        withUnsafeMutablePointer(to: &uid) { uidPtr in
+            AudioObjectGetPropertyData(
+                deviceID,
+                &uidAddress,
+                0,
+                nil,
+                &uidSize,
+                UnsafeMutableRawPointer(uidPtr)
+            )
+        }
 
         return AudioDevice(
             id: deviceID,
-            name: name as String,
-            uid: uid as String
+            name: (name as String?) ?? "Unknown",
+            uid: (uid as String?) ?? ""
         )
     }
 
