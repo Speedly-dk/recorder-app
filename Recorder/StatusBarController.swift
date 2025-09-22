@@ -13,12 +13,10 @@ enum PopoverState {
 class StatusBarController: NSObject, ObservableObject {
     private var statusItem: NSStatusItem!
     private lazy var popover: NSPopover = {
-        let pop = NSPopover()
+        let pop = ArrowlessPopover()
         pop.behavior = .transient
-        pop.animates = true
+        pop.animates = false  // Disable animation for cleaner appearance
         pop.delegate = self
-        // Remove arrow for cleaner appearance and better positioning
-        pop.appearance = NSAppearance(named: .darkAqua)
         return pop
     }()
 
@@ -192,10 +190,12 @@ class StatusBarController: NSObject, ObservableObject {
         // Update state machine
         popoverState = .opening
 
-        // Use button bounds for proper positioning relative to the button
-        // This ensures consistent alignment with the status bar icon
+        // Position the arrowless popover directly below the button
+        // Using a zero-height rect at the bottom of the button for precise positioning
+        let positioningRect = NSRect(x: 0, y: 0, width: button.bounds.width, height: 1)
+
         print("Showing popover...")
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.show(relativeTo: positioningRect, of: button, preferredEdge: .minY)
 
         // Start event monitoring
         eventMonitor?.start()
