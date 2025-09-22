@@ -15,7 +15,7 @@ struct ContentView: View {
         VStack(spacing: 20) {
             Text("Recorder Settings")
                 .font(.headline)
-                .padding(.top)
+                .padding(.top, 10)
 
             // Update notification
             if updateChecker.updateAvailable {
@@ -258,7 +258,6 @@ struct ContentView: View {
             .padding(.bottom, 12)
         }
         .frame(width: 350, height: 480)
-        .padding()
         .background(Color(NSColor.controlBackgroundColor))
         .onAppear {
             // Don't request microphone permission immediately

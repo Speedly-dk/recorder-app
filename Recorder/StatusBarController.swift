@@ -17,6 +17,12 @@ class StatusBarController: NSObject, ObservableObject {
         pop.behavior = .transient
         pop.animates = false  // Disable animation for cleaner appearance
         pop.delegate = self
+
+        // Set appearance to match system
+        if #available(macOS 11.0, *) {
+            pop.appearance = NSAppearance(named: .darkAqua)
+        }
+
         return pop
     }()
 
@@ -190,12 +196,9 @@ class StatusBarController: NSObject, ObservableObject {
         // Update state machine
         popoverState = .opening
 
-        // Position the arrowless popover directly below the button
-        // Using a zero-height rect at the bottom of the button for precise positioning
-        let positioningRect = NSRect(x: 0, y: 0, width: button.bounds.width, height: 1)
-
+        // Use the full button bounds for positioning
         print("Showing popover...")
-        popover.show(relativeTo: positioningRect, of: button, preferredEdge: .minY)
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
 
         // Start event monitoring
         eventMonitor?.start()
