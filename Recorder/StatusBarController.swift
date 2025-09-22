@@ -190,8 +190,13 @@ class StatusBarController: NSObject, ObservableObject {
         // Update state machine
         popoverState = .opening
 
+        // Use button center for consistent popover positioning
+        // This prevents the popover from jumping when button content changes
+        let buttonFrame = button.frame
+        let centerPoint = NSRect(x: buttonFrame.midX - 1, y: buttonFrame.minY, width: 2, height: buttonFrame.height)
+
         print("Showing popover...")
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        popover.show(relativeTo: centerPoint, of: button, preferredEdge: .minY)
 
         // Start event monitoring
         eventMonitor?.start()
