@@ -138,8 +138,6 @@ class StatusBarController: NSObject, ObservableObject {
 
     // Phase 1.3: Implement debounced toggle
     @objc func handleClick(_ sender: NSStatusBarButton) {
-        print("Status bar button clicked")
-
         // Cancel any pending toggle
         toggleDebouncer?.cancel()
 
@@ -163,27 +161,21 @@ class StatusBarController: NSObject, ObservableObject {
             closePopover()
         case .opening, .closing:
             // Ignore clicks during transitions
-            print("Ignoring click during transition state: \(popoverState)")
+            break
         }
     }
 
     // Phase 3.2: Implement retry mechanism
     func showPopoverWithRetry(attempts: Int = 3) {
         guard popoverState == .closed else {
-            print("Cannot show popover - current state: \(popoverState)")
             return
         }
 
         guard let button = statusItem.button else {
-            print("ERROR: Status item button is nil when trying to show popover")
-
             if attempts > 0 {
-                print("Retrying to show popover, attempts remaining: \(attempts - 1)")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
                     self?.showPopoverWithRetry(attempts: attempts - 1)
                 }
-            } else {
-                print("Failed to show popover after all retry attempts")
             }
             return
         }
@@ -191,41 +183,6 @@ class StatusBarController: NSObject, ObservableObject {
         // Update state machine
         popoverState = .opening
 
-        // Debug logging for positioning
-        print("\n=== POPOVER POSITIONING DEBUG ===")
-        print("Button bounds: \(button.bounds)")
-        print("Button frame: \(button.frame)")
-
-        if let window = button.window {
-            let windowFrame = window.frame
-            print("Button window frame: \(windowFrame)")
-            let screenFrame = window.screen?.frame ?? .zero
-            print("Screen frame: \(screenFrame)")
-
-            // Convert button frame to screen coordinates
-            let buttonScreenFrame = window.convertToScreen(button.frame)
-            print("Button screen frame: \(buttonScreenFrame)")
-        }
-
-        print("Button title: '\(button.title)'")
-        print("Button image: \(button.image?.description ?? "nil")")
-
-        // Handle attributedTitle which is NSAttributedString! (implicitly unwrapped optional)
-        var attributedTitleString = ""
-        var hasAttributedTitle = false
-        if button.attributedTitle != nil {
-            attributedTitleString = button.attributedTitle.string
-            hasAttributedTitle = !attributedTitleString.isEmpty
-        }
-        print("Button attributed title: '\(attributedTitleString)'")
-
-        // Track if button has content
-        let hasImage = button.image != nil
-        let hasTitle = !button.title.isEmpty
-
-        print("Button content - Image: \(hasImage), Title: \(hasTitle), AttributedTitle: \(hasAttributedTitle)")
-
-        print("Showing popover...")
         // Use a small rect at the center of the button for arrow alignment
         let centerRect = NSRect(
             x: button.bounds.midX - 1,
@@ -243,7 +200,6 @@ class StatusBarController: NSObject, ObservableObject {
                   let buttonWindow = button.window else { return }
 
             let currentFrame = popoverWindow.frame
-            print("Popover window frame after showing: \(currentFrame)")
 
             // Use the first-open Y position (790) which looks correct visually
             // This accounts for the arrow and provides proper spacing
@@ -256,10 +212,8 @@ class StatusBarController: NSObject, ObservableObject {
                 var fixedFrame = currentFrame
                 fixedFrame.origin.y = correctY
                 popoverWindow.setFrame(fixedFrame, display: false, animate: false)
-                print("Fixed popover Y position from \(currentFrame.origin.y) to \(correctY)")
             }
         }
-        print("=================================\n")
 
         // Start event monitoring
         eventMonitor?.start()
@@ -267,14 +221,12 @@ class StatusBarController: NSObject, ObservableObject {
 
     func closePopover() {
         guard popoverState == .open else {
-            print("Cannot close popover - current state: \(popoverState)")
             return
         }
 
         // Update state machine
         popoverState = .closing
 
-        print("Closing popover...")
         popover.performClose(nil)
 
         // Stop event monitoring immediately
@@ -287,11 +239,6 @@ class StatusBarController: NSObject, ObservableObject {
         // Safe access to audioRecorder
         let isRecording = audioRecorder?.isRecording ?? false
         let recordingDuration = audioRecorder?.recordingDuration ?? 0
-
-        print("\n=== STATUS ICON UPDATE ===")
-        print("Is recording: \(isRecording)")
-        print("Button bounds before update: \(button.bounds)")
-        print("Button frame before update: \(button.frame)")
 
         if isRecording {
             // Show icon with duration text
@@ -320,10 +267,6 @@ class StatusBarController: NSObject, ObservableObject {
             button.attributedTitle = NSAttributedString()
             button.contentTintColor = nil
         }
-
-        print("Button bounds after update: \(button.bounds)")
-        print("Button frame after update: \(button.frame)")
-        print("==========================\n")
     }
 
 
@@ -337,8 +280,6 @@ class StatusBarController: NSObject, ObservableObject {
 
     // Phase 3.3: Crash-safe deinit
     deinit {
-        print("StatusBarController deinit starting")
-
         // Cancel all Combine subscriptions synchronously
         cancellables.removeAll()
 
@@ -366,20 +307,16 @@ class StatusBarController: NSObject, ObservableObject {
             NSStatusBar.system.removeStatusItem(statusItem)
             self.statusItem = nil
         }
-
-        print("StatusBarController deinit completed")
     }
 }
 
 // Phase 3.1: Add NSPopoverDelegate
 extension StatusBarController: NSPopoverDelegate {
     func popoverDidShow(_ notification: Notification) {
-        print("Popover did show")
         popoverState = .open
     }
 
     func popoverDidClose(_ notification: Notification) {
-        print("Popover did close")
         popoverState = .closed
 
         // Ensure event monitor is stopped
@@ -387,12 +324,10 @@ extension StatusBarController: NSPopoverDelegate {
     }
 
     func popoverWillShow(_ notification: Notification) {
-        print("Popover will show")
         popoverState = .opening
     }
 
     func popoverWillClose(_ notification: Notification) {
-        print("Popover will close")
         popoverState = .closing
     }
 }
