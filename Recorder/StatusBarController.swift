@@ -15,7 +15,7 @@ class StatusBarController: NSObject, ObservableObject {
     private lazy var popover: NSPopover = {
         let pop = NSPopover()
         pop.behavior = .transient
-        pop.animates = true
+        pop.animates = false  // Disable animation to avoid positioning issues
         pop.delegate = self
 
         return pop
@@ -230,10 +230,27 @@ class StatusBarController: NSObject, ObservableObject {
         // NSPopover will center itself relative to these bounds
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
 
-        // Log popover position after showing
+        // Log popover position after showing and fix positioning if needed
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            if let popoverWindow = self?.popover.contentViewController?.view.window {
-                print("Popover window frame after showing: \(popoverWindow.frame)")
+            guard let self = self,
+                  let popoverWindow = self.popover.contentViewController?.view.window,
+                  let button = self.statusItem.button,
+                  let buttonWindow = button.window else { return }
+
+            let currentFrame = popoverWindow.frame
+            print("Popover window frame after showing: \(currentFrame)")
+
+            // Calculate correct Y position based on button position
+            // The popover should be just below the menu bar
+            let buttonScreenFrame = buttonWindow.convertToScreen(button.frame)
+            let correctY = buttonScreenFrame.minY - currentFrame.height - 20  // 20px gap for arrow
+
+            // If position is significantly off, fix it
+            if abs(currentFrame.origin.y - correctY) > 50 {  // More than 50px difference
+                var fixedFrame = currentFrame
+                fixedFrame.origin.y = correctY
+                popoverWindow.setFrame(fixedFrame, display: false, animate: false)
+                print("Fixed popover position from Y=\(currentFrame.origin.y) to Y=\(correctY)")
             }
         }
         print("=================================\n")
