@@ -14,8 +14,6 @@ class StatusBarController: NSObject, ObservableObject {
     private var statusItem: NSStatusItem!
     private lazy var popover: NSPopover = {
         let pop = ArrowlessPopover()
-        pop.behavior = .transient
-        pop.animates = false  // Disable animation for cleaner appearance
         pop.delegate = self
 
         // Set appearance to match system

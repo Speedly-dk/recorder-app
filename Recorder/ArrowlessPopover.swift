@@ -1,12 +1,13 @@
 import AppKit
 
-/// Custom NSPopover subclass that removes the arrow and provides proper positioning
+/// Custom NSPopover subclass that provides better positioning
 class ArrowlessPopover: NSPopover {
-
-    private var hasConfiguredArrow = false
 
     override init() {
         super.init()
+        // Configure popover appearance
+        self.animates = false
+        self.behavior = .transient
     }
 
     required init?(coder: NSCoder) {
@@ -14,49 +15,16 @@ class ArrowlessPopover: NSPopover {
     }
 
     override func show(relativeTo positioningRect: NSRect, of positioningView: NSView, preferredEdge: NSRectEdge) {
-        // Remove arrow before showing
-        if !hasConfiguredArrow {
-            removeArrow()
-            hasConfiguredArrow = true
-        }
-
         super.show(relativeTo: positioningRect, of: positioningView, preferredEdge: preferredEdge)
 
-        // Adjust window position after showing to compensate for removed arrow
+        // After showing, adjust the window frame to position it better
         DispatchQueue.main.async { [weak self] in
-            self?.adjustWindowPosition()
+            guard let window = self?.contentViewController?.view.window else { return }
+
+            var frame = window.frame
+            // Adjust position to be closer to menu bar (compensate for arrow space)
+            frame.origin.y += 8
+            window.setFrame(frame, display: false, animate: false)
         }
-    }
-
-    private func removeArrow() {
-        // Try multiple private API approaches to remove the arrow
-
-        // Method 1: _setHasArrow
-        if responds(to: Selector(("_setHasArrow:"))) {
-            perform(Selector(("_setHasArrow:")), with: false)
-        }
-
-        // Method 2: setValue for private properties
-        do {
-            try setValue(false, forKey: "hasArrow")
-        } catch {
-            print("Failed to set hasArrow: \(error)")
-        }
-
-        // Method 3: shouldHideAnchor
-        do {
-            try setValue(true, forKey: "shouldHideAnchor")
-        } catch {
-            print("Failed to set shouldHideAnchor: \(error)")
-        }
-    }
-
-    private func adjustWindowPosition() {
-        guard let window = contentViewController?.view.window else { return }
-
-        var frame = window.frame
-        // Move window up by approximately the arrow height (8-12 points)
-        frame.origin.y += 10
-        window.setFrame(frame, display: false, animate: false)
     }
 }
