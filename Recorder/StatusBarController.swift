@@ -17,9 +17,9 @@ class StatusBarController: NSObject, ObservableObject {
         pop.delegate = self
 
         // Set appearance to match system
-        if #available(macOS 11.0, *) {
-            pop.appearance = NSAppearance(named: .darkAqua)
-        }
+        // if #available(macOS 11.0, *) {
+        //    pop.appearance = NSAppearance(named: .darkAqua)
+        // }
 
         return pop
     }()
@@ -194,8 +194,8 @@ class StatusBarController: NSObject, ObservableObject {
         // Update state machine
         popoverState = .opening
 
-        // Use the full button bounds for positioning
         print("Showing popover...")
+        // Use full button bounds for consistent positioning
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
 
         // Start event monitoring
