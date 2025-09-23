@@ -214,7 +214,7 @@ class StatusBarController: NSObject, ObservableObject {
         // Track if button has content
         let hasImage = button.image != nil
         let hasTitle = !button.title.isEmpty
-        let hasAttributedTitle = button.attributedTitle != nil && !button.attributedTitle!.string.isEmpty
+        let hasAttributedTitle = button.attributedTitle != nil && !(button.attributedTitle?.string.isEmpty ?? true)
         print("Button content - Image: \(hasImage), Title: \(hasTitle), AttributedTitle: \(hasAttributedTitle)")
 
         print("Showing popover...")
