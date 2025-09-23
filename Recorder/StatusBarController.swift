@@ -246,8 +246,9 @@ class StatusBarController: NSObject, ObservableObject {
             // Center popover horizontally relative to button
             let correctX = buttonScreenFrame.midX - (currentFrame.width / 2)
 
-            // Position popover below the menu bar with consistent gap
-            let correctY = buttonScreenFrame.minY - currentFrame.height - 20  // 20px gap for arrow
+            // Use the first-open Y position (790) which looks correct visually
+            // This accounts for the arrow and provides proper spacing
+            let correctY: CGFloat = 790
 
             // Check if position needs adjustment
             let needsXFix = abs(currentFrame.origin.x - correctX) > 10
