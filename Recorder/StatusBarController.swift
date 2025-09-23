@@ -226,9 +226,14 @@ class StatusBarController: NSObject, ObservableObject {
         print("Button content - Image: \(hasImage), Title: \(hasTitle), AttributedTitle: \(hasAttributedTitle)")
 
         print("Showing popover...")
-        // Always use the full button bounds for consistent positioning
-        // NSPopover will center itself relative to these bounds
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        // Use a small rect at the center of the button for arrow alignment
+        let centerRect = NSRect(
+            x: button.bounds.midX - 1,
+            y: button.bounds.minY,
+            width: 2,
+            height: button.bounds.height
+        )
+        popover.show(relativeTo: centerRect, of: button, preferredEdge: .minY)
 
         // Fix popover position after showing to ensure consistency
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
@@ -240,26 +245,18 @@ class StatusBarController: NSObject, ObservableObject {
             let currentFrame = popoverWindow.frame
             print("Popover window frame after showing: \(currentFrame)")
 
-            // Calculate correct position based on button position
-            let buttonScreenFrame = buttonWindow.convertToScreen(button.frame)
-
-            // Center popover horizontally relative to button
-            let correctX = buttonScreenFrame.midX - (currentFrame.width / 2)
-
             // Use the first-open Y position (790) which looks correct visually
             // This accounts for the arrow and provides proper spacing
             let correctY: CGFloat = 790
 
-            // Check if position needs adjustment
-            let needsXFix = abs(currentFrame.origin.x - correctX) > 10
+            // Only fix Y position, let NSPopover handle X centering
             let needsYFix = abs(currentFrame.origin.y - correctY) > 10
 
-            if needsXFix || needsYFix {
+            if needsYFix {
                 var fixedFrame = currentFrame
-                fixedFrame.origin.x = correctX
                 fixedFrame.origin.y = correctY
                 popoverWindow.setFrame(fixedFrame, display: false, animate: false)
-                print("Fixed popover position from (\(currentFrame.origin.x), \(currentFrame.origin.y)) to (\(correctX), \(correctY))")
+                print("Fixed popover Y position from \(currentFrame.origin.y) to \(correctY)")
             }
         }
         print("=================================\n")
