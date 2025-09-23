@@ -210,7 +210,10 @@ class StatusBarController: NSObject, ObservableObject {
         print("Button title: '\(button.title)'")
         print("Button image: \(button.image?.description ?? "nil")")
 
-        let attributedTitleString = button.attributedTitle?.string ?? ""
+        var attributedTitleString = ""
+        if let attrTitle = button.attributedTitle {
+            attributedTitleString = attrTitle.string
+        }
         print("Button attributed title: '\(attributedTitleString)'")
 
         // Track if button has content
