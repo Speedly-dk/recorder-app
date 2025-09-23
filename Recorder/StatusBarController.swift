@@ -13,13 +13,10 @@ enum PopoverState {
 class StatusBarController: NSObject, ObservableObject {
     private var statusItem: NSStatusItem!
     private lazy var popover: NSPopover = {
-        let pop = ArrowlessPopover()
+        let pop = NSPopover()
+        pop.behavior = .transient
+        pop.animates = true
         pop.delegate = self
-
-        // Set appearance to match system
-        // if #available(macOS 11.0, *) {
-        //    pop.appearance = NSAppearance(named: .darkAqua)
-        // }
 
         return pop
     }()
@@ -195,7 +192,8 @@ class StatusBarController: NSObject, ObservableObject {
         popoverState = .opening
 
         print("Showing popover...")
-        // Use full button bounds for consistent positioning
+        // Always use the full button bounds for consistent positioning
+        // NSPopover will center itself relative to these bounds
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
 
         // Start event monitoring
