@@ -191,10 +191,44 @@ class StatusBarController: NSObject, ObservableObject {
         // Update state machine
         popoverState = .opening
 
+        // Debug logging for positioning
+        print("\n=== POPOVER POSITIONING DEBUG ===")
+        print("Button bounds: \(button.bounds)")
+        print("Button frame: \(button.frame)")
+
+        if let window = button.window {
+            let windowFrame = window.frame
+            print("Button window frame: \(windowFrame)")
+            let screenFrame = window.screen?.frame ?? .zero
+            print("Screen frame: \(screenFrame)")
+
+            // Convert button frame to screen coordinates
+            let buttonScreenFrame = window.convertToScreen(button.frame)
+            print("Button screen frame: \(buttonScreenFrame)")
+        }
+
+        print("Button title: '\(button.title)'")
+        print("Button image: \(button.image?.description ?? "nil")")
+        print("Button attributed title: \(button.attributedTitle?.string ?? "nil")")
+
+        // Track if button has content
+        let hasImage = button.image != nil
+        let hasTitle = !button.title.isEmpty
+        let hasAttributedTitle = button.attributedTitle != nil && !button.attributedTitle!.string.isEmpty
+        print("Button content - Image: \(hasImage), Title: \(hasTitle), AttributedTitle: \(hasAttributedTitle)")
+
         print("Showing popover...")
         // Always use the full button bounds for consistent positioning
         // NSPopover will center itself relative to these bounds
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+
+        // Log popover position after showing
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            if let popoverWindow = self?.popover.contentViewController?.view.window {
+                print("Popover window frame after showing: \(popoverWindow.frame)")
+            }
+        }
+        print("=================================\n")
 
         // Start event monitoring
         eventMonitor?.start()
@@ -223,6 +257,11 @@ class StatusBarController: NSObject, ObservableObject {
         let isRecording = audioRecorder?.isRecording ?? false
         let recordingDuration = audioRecorder?.recordingDuration ?? 0
 
+        print("\n=== STATUS ICON UPDATE ===")
+        print("Is recording: \(isRecording)")
+        print("Button bounds before update: \(button.bounds)")
+        print("Button frame before update: \(button.frame)")
+
         if isRecording {
             // Show icon with duration text
             let durationString = formatDuration(recordingDuration)
@@ -250,6 +289,10 @@ class StatusBarController: NSObject, ObservableObject {
             button.attributedTitle = NSAttributedString()
             button.contentTintColor = nil
         }
+
+        print("Button bounds after update: \(button.bounds)")
+        print("Button frame after update: \(button.frame)")
+        print("==========================\n")
     }
 
 
